@@ -3,26 +3,19 @@ import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import {
+  registerSchema,
+  loginSchema,
+  RegisterSchema,
+} from "../schema/routes/auth";
+import config from "../config";
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Zod schemas for validation
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  name: z.string().min(2).optional(),
-});
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string(),
-});
-
-// Registration endpoint
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const userData = registerSchema.parse(req.body);
+    const userData: RegisterSchema = registerSchema.parse(req.body);
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -44,14 +37,12 @@ router.post("/register", async (req: Request, res: Response) => {
       },
     });
 
-    // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || "your-secret-key",
+      config.jwtSecret,
       { expiresIn: "24h" }
     );
 
-    // Remove password from response
     const { password, ...userWithoutPassword } = user;
 
     return res.status(201).json({
@@ -68,7 +59,6 @@ router.post("/register", async (req: Request, res: Response) => {
   }
 });
 
-// Login endpoint
 router.post("/login", async (req: Request, res: Response) => {
   try {
     const credentials = loginSchema.parse(req.body);
@@ -95,7 +85,7 @@ router.post("/login", async (req: Request, res: Response) => {
     // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || "your-secret-key",
+      config.jwtSecret,
       { expiresIn: "24h" }
     );
 

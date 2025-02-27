@@ -3,17 +3,16 @@ import express from "express";
 import morgan from "morgan";
 import cors from "cors";
 import helmet from "helmet";
-import { expressjwt as jwt } from "express-jwt";
 import tracer from "dd-trace";
+import config from "./config";
+import authRoutes from "./routes/auth";
+import userRoutes from "./routes/user";
+import { path } from "./lib/path";
+import { jwtAuthentication } from "./middleware/jwt";
 
-// Initialize Datadog tracer
 tracer.init({
   logInjection: true,
 });
-
-// Import routes (we'll create these next)
-import authRoutes from "./routes/auth";
-import userRoutes from "./routes/user";
 
 const app = express();
 
@@ -21,33 +20,21 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(helmet());
-app.use(morgan("combined")); // You can customize the format
+app.use(morgan("combined"));
 
-// JWT authentication middleware
-const authenticateJWT = jwt({
-  secret: process.env.JWT_SECRET || "your-secret-key",
-  algorithms: ["HS256"],
-}).unless({
-  path: [
-    "/api/auth/login",
-    "/api/auth/register",
-    // Add other public routes here
-  ],
-});
-
-app.use(authenticateJWT);
+app.use(jwtAuthentication);
 
 // Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
+app.use(path.build.api("auth"), authRoutes);
+app.use(path.build.api("users"), userRoutes);
 
 // Error handling middleware
 app.use(
   (
     err: any,
-    // req: express.Request,
-    res: express.Response
-    // next: express.NextFunction
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
   ) => {
     console.error(err.stack);
     res.status(err.status || 500).json({
@@ -56,7 +43,7 @@ app.use(
   }
 );
 
-const PORT = process.env.PORT || 3000;
+const PORT = config.port;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
