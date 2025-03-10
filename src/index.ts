@@ -1,22 +1,20 @@
 import "dotenv/config";
+import "dd-trace";
 import express from "express";
 import morgan from "morgan";
 import cors from "cors";
 import helmet from "helmet";
-import tracer from "dd-trace";
 import config from "./config";
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/user";
 import { path } from "./lib/path";
 import { jwtAuthentication } from "./middleware/jwt";
 
-tracer.init({
-  logInjection: true,
-});
-
 const app = express();
 
-// Middleware
+/**
+ * Middleware
+ */
 app.use(express.json());
 app.use(cors());
 app.use(helmet());
@@ -24,11 +22,15 @@ app.use(morgan("combined"));
 
 app.use(jwtAuthentication);
 
-// Routes
+/**
+ * Routes
+ */
 app.use(path.build.api("auth"), authRoutes);
 app.use(path.build.api("users"), userRoutes);
 
-// Error handling middleware
+/**
+ * Error handling middleware, must be the last middleware
+ */
 app.use(
   (
     err: any,

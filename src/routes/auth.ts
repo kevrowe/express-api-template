@@ -2,11 +2,12 @@ import express, { Request, Response } from "express";
 import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import {
-  registerSchema,
-  loginSchema,
-  RegisterSchema,
+  registerRequestSchema,
+  loginRequestSchema,
+  RegisterRequest,
+  LoginRequest,
 } from "../schema/routes/auth";
 import config from "../config";
 
@@ -15,9 +16,8 @@ const prisma = new PrismaClient();
 
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const userData: RegisterSchema = registerSchema.parse(req.body);
+    const userData: RegisterRequest = registerRequestSchema.parse(req.body);
 
-    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email: userData.email },
     });
@@ -26,10 +26,8 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         ...userData,
@@ -61,9 +59,8 @@ router.post("/register", async (req: Request, res: Response) => {
 
 router.post("/login", async (req: Request, res: Response) => {
   try {
-    const credentials = loginSchema.parse(req.body);
+    const credentials: LoginRequest = loginRequestSchema.parse(req.body);
 
-    // Find user
     const user = await prisma.user.findUnique({
       where: { email: credentials.email },
     });
@@ -72,7 +69,6 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Verify password
     const validPassword = await bcrypt.compare(
       credentials.password,
       user.password
@@ -82,14 +78,12 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       config.jwtSecret,
       { expiresIn: "24h" }
     );
 
-    // Remove password from response
     const { password, ...userWithoutPassword } = user;
 
     return res.json({

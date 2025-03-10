@@ -5,23 +5,22 @@ import { PrismaClient } from "@prisma/client";
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Zod schema for user creation
-const createUserSchema = z.object({
+const createUserRequestSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2).optional(),
   password: z.string().min(6),
 });
 
+type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
+
 router.post("/", async (req, res) => {
   try {
-    // Validate request body
-    const userData = createUserSchema.parse(req.body);
+    const userData: CreateUserRequest = createUserRequestSchema.parse(req.body);
 
     const user = await prisma.user.create({
       data: userData,
     });
 
-    // Remove password from response
     const { password, ...userWithoutPassword } = user;
     res.status(201).json(userWithoutPassword);
   } catch (error) {
